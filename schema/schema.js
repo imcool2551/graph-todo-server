@@ -9,8 +9,8 @@ const {
   GraphQLNonNull,
 } = require('graphql');
 
-const Todo = require('../models/todo');
-const User = require('../models/user');
+const Todo = require('../models/Todo');
+const User = require('../models/User');
 
 // Type Definition
 const TodoType = new GraphQLObjectType({
@@ -33,7 +33,7 @@ const UserType = new GraphQLObjectType({
   name: 'User',
   fields: () => ({
     id: { type: GraphQLID },
-    name: { type: GraphQLString },
+    displayName: { type: GraphQLString },
     todos: {
       type: new GraphQLList(TodoType),
       resolve: (parent) => {
@@ -47,30 +47,26 @@ const UserType = new GraphQLObjectType({
 const RootQuery = new GraphQLObjectType({
   name: 'RootQueryType',
   fields: {
-    todo: {
-      type: TodoType,
-      args: { id: { type: GraphQLID } },
-      resolve: (_, args) => {
-        return Todo.findById(args.id);
+    myTodos: {
+      type: new GraphQLList(TodoType),
+      resolve: (_, __, { user }) => {
+        return Todo.findByUserId(user._id);
+      },
+    },
+    allUsers: {
+      type: new GraphQLList(UserType),
+      resolve: () => {
+        return User.find({});
       },
     },
     todos: {
       type: new GraphQLList(TodoType),
-      resolve: () => {
-        return Todo.find({});
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLString) },
       },
-    },
-    user: {
-      type: UserType,
-      args: { id: { type: GraphQLID } },
-      resolve: (_, args) => {
-        return User.findById(args.id);
-      },
-    },
-    users: {
-      type: new GraphQLList(UserType),
-      resolve: () => {
-        return User.find({});
+      resolve: (_, { id }) => {
+        console.log('hello?');
+        return Todo.findByUserId(id);
       },
     },
   },
@@ -80,25 +76,31 @@ const RootQuery = new GraphQLObjectType({
 const Mutation = new GraphQLObjectType({
   name: 'Mutation',
   fields: {
-    addUser: {
-      type: UserType,
-      args: {
-        name: { type: new GraphQLNonNull(GraphQLString) },
-      },
-      resolve: (_, { name }) => {
-        const newUser = new User({ name });
-        return newUser.save();
-      },
-    },
     addTodo: {
       type: TodoType,
       args: {
         text: { type: new GraphQLNonNull(GraphQLString) },
-        userId: { type: new GraphQLNonNull(GraphQLID) },
       },
-      resolve: (_, { text, userId }) => {
-        const newTodo = new Todo({ text, userId });
-        return newTodo.save();
+      resolve: (_, { text }, { user }) => {
+        return Todo.createTodo(text, user);
+      },
+    },
+    toggleTodo: {
+      type: TodoType,
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+      },
+      resolve: (_, { id }, { user }) => {
+        return Todo.toggleTodo(id, user);
+      },
+    },
+    deleteTodo: {
+      type: TodoType,
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+      },
+      resolve: (_, { id }, { user }) => {
+        return Todo.deleteTodo(id, user);
       },
     },
   },
